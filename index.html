@@ -23,6 +23,8 @@
     position: fixed; right: 12px; bottom: 12px; width: 44px; height: 44px; padding: 6px;
     border: 0; border-radius: 50%; background: rgba(255,255,255,0.08); cursor: pointer; opacity: 0.55;
   }
+  #menu.nudge { opacity: 1; animation: nudge 0.9s ease-in-out infinite alternate; }
+  @keyframes nudge { from { transform: scale(1); } to { transform: scale(1.25); } }
   #menu:hover, #menu:focus-visible { opacity: 1; }
   #menu svg { width: 100%; height: 100%; display: block; }
   #chooser {
@@ -773,8 +775,10 @@ function buildChooser() {
 function markChooser() {
   for (const [id, b] of thumbs) b.classList.toggle('on', rotation.stage.includes(id));
 }
+let menuSeen = false;
 menuBtn.addEventListener('click', () => {
   first();
+  menuSeen = true;
   chooser.hidden = !chooser.hidden;
   if (!chooser.hidden) markChooser();
 });
@@ -823,10 +827,13 @@ function lightsNow(now) {
 // The first touch does what a browser only allows after a gesture: sound,
 // full screen where there is such a thing, and keeping the screen awake.
 let touched = false;
+let nudgeUntil = 0;              // the second hint, about the chooser, after the first touch
+const NUDGE_MS = 12000;
 function first() {
   wail.unlock();
   if (touched) return;
   touched = true;
+  nudgeUntil = performance.now() + NUDGE_MS;
   const el = document.documentElement;
   if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
   if (navigator.wakeLock) navigator.wakeLock.request('screen').catch(() => {});
@@ -850,9 +857,14 @@ function frame() {
   for (const g of ghosts) if (g.layer === 'front') drawGhost(ctx, g, sprites.get(g.id), now, W, H, zoom);
   for (const l of lights) drawHalo(ctx, { x: l.x, y: l.y / aspect }, now, W, H);
 
-  const text = !touched ? 'touch the screen: the ghosts follow your finger · pinch to size them' : '';
+  // Two hints, one at a time: how to touch, then, once touched, where the
+  // rest of the ghosts are. The corner ghost pulses until it has been tapped.
+  const nudge = touched && !menuSeen && now < nudgeUntil;
+  const text = !touched ? 'touch the screen: the ghosts follow your finger · pinch to size them'
+    : nudge ? 'tap the little ghost in the corner for more ghosts' : '';
   hint.textContent = text;
   hint.classList.toggle('quiet', !text);
+  menuBtn.classList.toggle('nudge', nudge);
 }
 
 function start(list) {
