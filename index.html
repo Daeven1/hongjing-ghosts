@@ -478,26 +478,28 @@ function canvasFilterWorks() {
   return filterWorks;
 }
 
-// A blur with no filter: shrink the drawing hard, then grow it back in two
-// steps, and the browser's smoothing softens it on the way. Exported for
-// the test; the wall never calls it directly.
+// A blur with no filter: shrink the drawing and grow it back, in two steps,
+// and the browser's smoothing softens it on the way. One such pass spreads
+// wide and dim, nothing like the filter's bright edge, so the glow is laid
+// down twice: a tight pass at full strength that hugs the lines, and a wide
+// one, lighter, for the spill. Side by side with the filter they match.
+// Exported for the test; the wall never calls it directly.
 function scaleBlur(g, w, h, img, pad, radius) {
-  // Scaling spreads wider than a filter of the same radius, so shrink less
-  // and lay it down a little lighter: side by side, the two glows match.
-  const k = Math.max(2, radius * 0.6);
-  const small = document.createElement('canvas');
-  small.width = Math.max(1, Math.round(w / k)); small.height = Math.max(1, Math.round(h / k));
-  const s = small.getContext('2d');
-  s.imageSmoothingEnabled = true;
-  s.drawImage(img, pad / k, pad / k, img.width / k, img.height / k);
-  const mid = document.createElement('canvas');
-  mid.width = Math.max(1, Math.round(w / Math.sqrt(k))); mid.height = Math.max(1, Math.round(h / Math.sqrt(k)));
-  const m = mid.getContext('2d');
-  m.imageSmoothingEnabled = true;
-  m.drawImage(small, 0, 0, mid.width, mid.height);
   g.imageSmoothingEnabled = true;
-  g.globalAlpha = 0.8;
-  g.drawImage(mid, 0, 0, w, h);
+  for (const [k, alpha] of [[Math.max(2, radius * 0.3), 1], [Math.max(2, radius * 0.9), 0.55]]) {
+    const small = document.createElement('canvas');
+    small.width = Math.max(1, Math.round(w / k)); small.height = Math.max(1, Math.round(h / k));
+    const s = small.getContext('2d');
+    s.imageSmoothingEnabled = true;
+    s.drawImage(img, pad / k, pad / k, img.width / k, img.height / k);
+    const mid = document.createElement('canvas');
+    mid.width = Math.max(1, Math.round(w / Math.sqrt(k))); mid.height = Math.max(1, Math.round(h / Math.sqrt(k)));
+    const m = mid.getContext('2d');
+    m.imageSmoothingEnabled = true;
+    m.drawImage(small, 0, 0, mid.width, mid.height);
+    g.globalAlpha = alpha;
+    g.drawImage(mid, 0, 0, w, h);
+  }
   g.globalAlpha = 1;
 }
 
